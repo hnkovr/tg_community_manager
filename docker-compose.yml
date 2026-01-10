@@ -1,0 +1,59 @@
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: ${ENV_DB_DATABASE:-tgcm}
+      POSTGRES_USER: ${ENV_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ENV_DB_PASSWORD:-postgres}
+    ports:
+      - "${ENV_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ENV_DB_USER:-postgres} -d ${ENV_DB_DATABASE:-tgcm} -h 127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  bot:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - config/.env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_NO_CACHE_DIR: "1"
+      # Ensure app inside Docker uses the containerized DB
+      ENV_DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["bash", "/app/docker-compose-utils.sh", "bot"]
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+
+  cas_feed_listener:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - config/.env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_NO_CACHE_DIR: "1"
+      ENV_DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["bash", "/app/docker-compose-utils.sh", "cas_listener"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:

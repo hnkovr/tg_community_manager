@@ -35,6 +35,39 @@ Then, you can run the bot with the following command:
 
 Remember to replace 'BOT_KEY' in the config dictionary with your actual bot token obtained from BotFather on Telegram.
 
+## Environment Setup (.env)
+- `config/setenv.py`: Interactive wizard that creates or updates `config/.env` with all required variables (Telegram, database, OpenAI, logging, etc.).
+  - Run: `python3 config/setenv.py`
+  - To load the resulting environment into your current shell: `source config/setenv.sh`
+
+The `.env` file is used by both local runs and Docker Compose. You can rerun the wizard any time; it backs up an existing `.env`.
+
+## Docker Compose
+- `docker-compose.yml`: Local development stack with:
+  - `db` (PostgreSQL with pgvector)
+  - `bot` (main Telegram bot)
+  - `cas_feed_listener` (optional CAS feed listener)
+- `docker-compose-utils.sh`: Helper entrypoint used by the `bot` and `cas_feed_listener` services to install deps, run migrations, and start the processes.
+
+Common commands:
+- Start everything (requires `config/.env`): `docker compose up -d --build`
+- Start only DB: `docker compose up -d db`
+- Follow logs: `docker compose logs -f`
+- Stop and remove: `docker compose down`
+
+Note: The Compose services read variables from `config/.env`. Inside containers the app connects to the DB host `db` (set via `ENV_DB_HOST`).
+
+## Justfile (task runner)
+- `Justfile`: Convenience commands for common workflows. Examples:
+  - `just env-setup` – run the interactive `.env` wizard
+  - `just run` – run the bot locally (`src/dispatcher.py`) using your current environment
+  - `just migrate` – apply alembic migrations (loads vars from `config/.env`)
+  - `just dc-up` / `just dc-up-bot` / `just dc-up-db` – start services via Docker Compose
+  - `just dc-logs` / `just dc-down` / `just dc-ps` – inspect or stop Compose services
+  - `just psql` – open a psql shell into the Compose DB service
+
+List all recipes with `just --list`. If you need the environment in your current shell, you can use `source config/setenv.sh` before invoking local commands.
+
 ## Contributing
 Contributions, issues, and feature requests are welcome. Feel free to check the [issues page](https://github.com/rvnikita/tg_community_manager/issues) if you want to contribute.
 
